@@ -1,0 +1,14 @@
+[package]
+name = "mathis_app"
+version = "0.1.0"
+authors = ["Noah Figg <eggmunkee@gmail.com>"]
+
+[dependencies]
+piston_window = "*"
+vecmath = "*"
+piston2d-graphics = "*"
+clock_ticks = "*"
+rand = "*"
+gfx = "*"
+piston2d-gfx_graphics = "*"
+piston = "*"
