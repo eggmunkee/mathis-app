@@ -35,6 +35,8 @@ pub struct MathisEngine {
 	pub tick_rate : Scalar,
 
 	pub min_max_star_distance : (Scalar, Scalar),
+
+	next_id: i32,
 }
 
 impl MathisEngine {
@@ -46,6 +48,7 @@ impl MathisEngine {
 			remove_check_filter : RemoveCheckFilter::CheckMassLessThan { mass: 1.0 },
 			distance_scale: 1.0, tick_rate: 0.01,
 			min_max_star_distance: (1_000_000.0,0.0),
+			next_id: 1,
 		}
 	}
 
@@ -57,15 +60,55 @@ impl MathisEngine {
 			remove_check_filter : RemoveCheckFilter::CheckMassLessThan { mass: 1.0 },
 			distance_scale: 1.0, tick_rate: tickRate,
 			min_max_star_distance: (0.0,0.0),
+			next_id: 1,
 		}
 	}
 
-	fn funcF(&self, M: Scalar, m: Scalar, R: Scalar, r_radius: Scalar, t_delta: Scalar) -> Scalar {
-		(self.G * m * M / R.powi(2)) - (2.0 * self.G * m * M / ( r_radius * self.C * t_delta ))
+	fn funcF(&self, mut M: Scalar, mut m: Scalar, mut r: Scalar, mut r_radius: Scalar, mut t_delta: Scalar) -> Scalar {
+		M *= 0.2;
+		m *= 0.2;
+		r *= 1.0;
+		t_delta *= 1.0;
+		let mut eff_g = self.G;
+		let mut eff_c = self.C;
+		let r_squared = r.powi(2);
+		let r_squared2 = r_squared * r_squared;
+		eff_g *= 1.0;
+		eff_c *= 0.1;
+
+
+		let mut expansion = - (eff_g * m * M * t_delta / (r_squared));
+		let mut bombardment = (2.0 * eff_g * m * M / ( r_squared2 * eff_c * t_delta ));
+		let force = expansion + bombardment;
+
+		if (expansion > 0.0) { panic!("Expansion isn't negative! H = {}", expansion); }
+		if (bombardment < 0.0) { panic!("Bombardment isn't negative! E = {}", bombardment); }
+
+		//expansion *= 3.0;
+		//bombardment += 100.0 * t_delta;
+
+		if self.frame % 150 == 1110 {
+			println!("M = {}, m = {}, r = {}, t = {}", M, m, r, t_delta);
+			println!(" o H = -G:{} * m:{} * M:{} * t:{} / (r^2:{})", eff_g, m, M, t_delta, r_squared);
+			println!(" o E = 2 * G:{} * m:{} * M:{} / (r^4:{} * C:{} * t:{})", eff_g, m, M, r_squared2, eff_c, t_delta);
+			println!(" > H = {}, E = {}, F = {}", expansion, bombardment, force);
+		}
+
+		return expansion + bombardment;
 	}
 
 	pub fn addObject(&mut self, position: Vec2d, mass: Scalar, radius: Scalar, color: Color, velocity: Vec2d) {
-		self.objects.push( MathisObject::new(position, mass, radius, color, velocity) );
+		self.next_id += 1;
+		self.objects.push( MathisObject::new(self.next_id, position, mass, radius, color, velocity) );
+	}
+
+	fn check_accel(&mut self, obj_idx: usize, obj_accel: f64, obj_2_idx: usize)  {
+		let obj_accel_chk = obj_accel.abs();
+
+		if obj_accel_chk > self.objects[obj_idx].max_accel.abs() {
+			self.objects[obj_idx].max_accel = obj_accel;
+			self.objects[obj_idx].max_accel_id = self.objects[obj_2_idx].obj_id;
+		}
 	}
 
 	pub fn calc_center_of_mass(&mut self) -> Vec2d {
@@ -111,6 +154,10 @@ impl MathisEngine {
 			//let c2 = [ 450.0 * (t * -1.49).sin(), 450.0 * (t * -1.49).cos() ];
 			if t > 0.0001 {
 
+				for i in 0 .. self.objects.len() {
+					self.objects[i].max_accel = 0.0;
+					self.objects[i].max_accel_id = -1;
+				}
 
 				for i in 0 .. self.objects.len() {
 
@@ -136,7 +183,7 @@ impl MathisEngine {
 						let mut y_diff = (pos_diff[1]) * self.distance_scale;
 
 						// Exclude minimal interactions between small particles at large distances for performance reasons
-						if x_diff * x_diff + y_diff * y_diff > 2500.0 && M + m < 0.5 {
+						if x_diff * x_diff + y_diff * y_diff > 25000.0 && M + m < 0.5 {
 							continue;
 						}
 
@@ -162,6 +209,7 @@ impl MathisEngine {
 						}
 
 						// Calculate radius edge to radius edge length
+						/*
 						let mut r_radius = R - radius_sum; //((x_diff - radius_sum_x).abs().powi(2) + (y_diff - radius_sum_y).abs().powi(2)).sqrt();
 						if r_radius < 2.5 {
 							//let r_prime = r_radius - 0.51;
@@ -171,6 +219,7 @@ impl MathisEngine {
 							R = (radius_sum + 2.5 + R) / (radius_sum + 2.5);
 							r_radius = (radius_sum + 2.5 + r_radius) / (radius_sum + 2.5);
 						}
+						*/
 
 						if x_diff.is_nan() || y_diff.is_nan() {
 							panic!("X/Y diff unit is Nan. x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", x1,y1,x2,y2);
@@ -190,16 +239,18 @@ impl MathisEngine {
 						// 	R = 0.1; //Min distance
 						// }
 
+						/*
 						if r_radius.is_nan() {
 							panic!("r_radius is Nan. x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", x1,y1,x2,y2);
 							r_radius = 0.1;
 						}
+						*/
 
 						let x_diff_unit = R_cos;
 						let y_diff_unit = R_sin;
 
 						if x_diff_unit.is_nan() || y_diff_unit.is_nan() {
-							panic!("X/Y diff unit is Nan. r_radius = {:?}, x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", r_radius, x1,y1,x2,y2);
+							//panic!("X/Y diff unit is Nan. r_radius = {:?}, x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", r_radius, x1,y1,x2,y2);
 
 						}
 						/*
@@ -215,25 +266,28 @@ impl MathisEngine {
 						}
 						else */
 
-						let mut F = self.funcF(M, m,R,r_radius, t);
+						let mut F = self.funcF(M, m,R,0.0, t);
 						if F.is_nan() {
-							panic!("Force is NaN: M {}, m {}, R {}, r_radius {}, t_delta {}", M, m, R, r_radius, t);
+							panic!("Force is NaN: M {}, m {}, R {}, r_radius {}, t_delta {}", M, m, R, 0.0, t);
 							F = 0.01;
 						}
 						let mut A = F / M;
 						let mut a = F / m;
 						if A.is_nan() {
 							A = 0.01;
-							panic!("A is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, r_radius, t);
+							panic!("A is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
 						}
 						if a.is_nan() {
 							a = 0.01;
-							panic!("a is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, r_radius, t);
+							panic!("a is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
 						}
 
 						//apply relative acceleration to each pair
 
 						if self.objects[j].enable_accel {
+							{
+								self.check_accel(j, A, i);
+							}
 							// if i == 0 && j == 0 {
 							// 	println!("obj[0].vel {:?}, obj[0].x_acc {:?}, obj[0].y_acc {:?}. pos_diff {:?}, x_diff {:?}, y_diff {:?}",
 							// 		self.objects[j].velocity, t * A * x_diff_unit, t * A * y_diff_unit, pos_diff, x_diff, y_diff);
@@ -241,6 +295,9 @@ impl MathisEngine {
 							self.objects[j].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[j].velocity, &[t * A * x_diff_unit, t * A * y_diff_unit])
 						}
 						if self.objects[i].enable_accel {
+							{
+								self.check_accel(i, a, j);
+							}
 							self.objects[i].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[i].velocity, &[t * a * -x_diff_unit, t * a * -y_diff_unit]);
 						}
 					}

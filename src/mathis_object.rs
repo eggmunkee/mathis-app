@@ -19,6 +19,7 @@ pub enum RadiusOrigin {
 
 #[derive(Debug)]
 pub struct MathisObject<T> {
+	pub obj_id : i32,
 	pub position : T,
 	pub mass : Scalar,
 	pub color : Color,
@@ -26,14 +27,17 @@ pub struct MathisObject<T> {
 	pub velocity : T,
 	pub radius_action : RadiusAction,
 	pub radius_origin : RadiusOrigin,
+	pub max_accel : f64,
+	pub max_accel_id: i32,
 	pub enable_accel : bool,
 }
 
 //Generic methods
 impl<T> MathisObject<T> {
-	pub fn new(position: T, mass: Scalar, radius: Scalar, color: Color, velocity: T) -> MathisObject<T> {
-		MathisObject::<T> { position: position, mass: mass, radius: radius, color: color, velocity: velocity,
-			radius_action: RadiusAction::RemoveAtRadius(500.0), radius_origin: RadiusOrigin::CenterOfGravity, enable_accel: true }
+	pub fn new(id: i32, position: T, mass: Scalar, radius: Scalar, color: Color, velocity: T) -> MathisObject<T> {
+		MathisObject::<T> { obj_id: id, position: position, mass: mass, radius: radius, color: color, velocity: velocity,
+			radius_action: RadiusAction::RemoveAtRadius(500.0), radius_origin: RadiusOrigin::CenterOfGravity, enable_accel: true,
+		 	max_accel : 0.0, max_accel_id : -1}
 	}
 }
 

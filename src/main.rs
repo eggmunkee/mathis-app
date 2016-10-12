@@ -74,7 +74,7 @@ fn main() {
 	//let mut rng = rand::thread_rng();
 
 	//Create instance of mathis engine, set constants G and C for physics equations
-	let mut engine : MathisEngine = MathisEngine::new_with_g_c(2000.0, 10000.0, 0.001);  //(1500.0, 2000.0);
+	let mut engine : MathisEngine = MathisEngine::new_with_g_c(10000.0, 1000000.0, 0.01);  //(1500.0, 2000.0);
 	engine.distance_scale = 1.0; //Scale the distance between points which begin in pixels
 
 
