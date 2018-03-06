@@ -191,97 +191,24 @@ impl MathisEngine {
 					let mut x_diff = (pos_diff[0]) * self.distance_scale;
 					let mut y_diff = (pos_diff[1]) * self.distance_scale;
 
-					// Exclude minimal interactions between small particles at large distances for performance reasons
-					// if x_diff * x_diff + y_diff * y_diff > 25000.0 && M + m < 0.5 {
-					// 	continue;
-					// }
-
+					// Get angle between points, then the x and y components of that angle
 					let angle = pos_diff[1].atan2(pos_diff[0]);
 					let R_sin = angle.sin();
 					let R_cos = angle.cos();
-					//let mut x_diff2 = pos_diff[0].abs() * self.distance_scale;
-					//let mut y_diff2 = pos_diff[1].abs() * self.distance_scale;
 
-					// let radius_sum = self.objects[j].radius + self.objects[i].radius;
-					// let radius_sum_y = R_sin * radius_sum;
-					// let radius_sum_x = R_cos * radius_sum;
-					// if i == 0 && i == 11 && j == 0 {
-					// 	println!("Combined Radius - Radius {}, X component {}, Y component {}, x_diff {:?}, y_diff {:?}",
-					// 		radius_sum, radius_sum_x, radius_sum_y, x_diff, y_diff);
-
-					// }
+					if x_diff.is_nan() || y_diff.is_nan() {
+						panic!("X/Y diff unit is Nan. x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", x1,y1,x2,y2);
+					}
 
 					//Calculate hypotenuse of x_diff and y_diff R for formula
 					let mut R = ((x_diff).abs().powi(2) + (y_diff).abs().powi(2)).sqrt();
 
-					//let mut R = ((x_diff).abs().powi(2) + (y_diff).abs().powi(2)).sqrt().max(0.01);
-
-					//if R < self.objects[j].radius.max(self.objects[i].radius) {
-					//}
-
-					// Calculate radius edge to radius edge length
-					/*
-					let mut r_radius = R - radius_sum; //((x_diff - radius_sum_x).abs().powi(2) + (y_diff - radius_sum_y).abs().powi(2)).sqrt();
-					if r_radius < 2.5 {
-						//let r_prime = r_radius - 0.51;
-						//r_radius = 0.((-1.0 * 0) / r_prime).abs(); // 1.0 => 10, 0.5 => 2, 0 => 1, -1 => 0.5, -2 => 0.33
-						// R = 0.6;
-						// r_radius = 0.6;
-						R = (radius_sum + 2.5 + R) / (radius_sum + 2.5);
-						r_radius = (radius_sum + 2.5 + r_radius) / (radius_sum + 2.5);
-					}
-					*/
-
-					if x_diff.is_nan() || y_diff.is_nan() {
-						panic!("X/Y diff unit is Nan. x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", x1,y1,x2,y2);
-						let vel_range = Range::new(-0.7, 0.7);
-						x_diff = 0.7; //vel_range.ind_sample(&mut rng);
-						y_diff = 0.7; //vel_range.ind_sample(&mut rng);
-					}
-
-					// if R.is_nan() == false {
-					// 	if self.objects[j].mass > 10.0 && self.objects[i].mass > 10.0 { //between stars
-					// 		if R < self.min_max_star_distance.0 { self.min_max_star_distance.0 = r_radius; }
-					// 		else if R > self.min_max_star_distance.1 { self.min_max_star_distance.1 = r_radius; }
-					// 	}
-					// }
-					// else {
-					// 	panic!("R is Nan. x_diff = {:?}, y_diff = {:?}", x_diff, y_diff);
-					// 	R = 0.1; //Min distance
-					// }
-
-					/*
-					if r_radius.is_nan() {
-						panic!("r_radius is Nan. x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", x1,y1,x2,y2);
-						r_radius = 0.1;
-					}
-					*/
-
 					let x_diff_unit = R_cos;
 					let y_diff_unit = R_sin;
-
-					if x_diff_unit.is_nan() || y_diff_unit.is_nan() {
-						//panic!("X/Y diff unit is Nan. r_radius = {:?}, x1,y1 = {:?},{:?} x2,y2 = {:?},{:?}", r_radius, x1,y1,x2,y2);
-
-					}
-					/*
-					if radius[j] + radius[i] >= R / 2.0 {
-						if frame_since_report >= 100 {
-							println!("Collision. R1 = {:?}, R2 = {:?}, R = {}", radius[j], radius[i], R);
-							frame_since_report = 0;
-						}
-						let radius_portion1 = (R - radius[j]);
-						let radius_portion2 = (R - radius[i]);
-						velocity[j] = translate_vec(velocity[j], [x_diff_unit * radius_portion1, y_diff_unit * radius_portion1]);
-						velocity[i] = translate_vec(velocity[i], [-x_diff_unit * radius_portion2, -y_diff_unit * radius_portion2]);
-					}
-					else */
 
 					let mut F = self.funcF(M, m,R,0.0, t);
 					if !F.is_nan() && F != 0.0 && F < 1000.0 {
 
-							//panic!("Force is NaN: M {}, m {}, R {}, r_radius {}, t_delta {}", M, m, R, 0.0, t);
-							//F = 0.01;
 						let mut A = F / M;
 						let mut a = F / m;
 						if A.is_nan() {
@@ -293,8 +220,7 @@ impl MathisEngine {
 							panic!("a is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
 						}
 
-						//apply relative acceleration to each pair
-
+						//apply relative acceleration to each object of the pair
 						if self.objects[j].enable_accel {
 							{
 								self.check_accel(j, A, i);
@@ -318,16 +244,12 @@ impl MathisEngine {
 		}
 
 		//Update positions from velocity vector
-		//pos1 = velocity(pos1, c1, t_delta);
 		for obj in self.objects.iter_mut() {
 			//if obj.enable_accel == false { continue; }
 			let new_position = MathisObject::<Vec2d>::apply_velocity(&obj.position, &obj.velocity, t);
 			if new_position[0].is_nan() || new_position[1].is_nan() {
 				println!("Debug object {:?}", obj);
 				panic!("Apply Velocity error: t_delta {} v ({:?}) p ({:?}) p' ({:?})", t, obj.velocity, obj.position, new_position);
-				// 	self.objects[i].velocity[0], self.objects[i].velocity[1],
-				// 	self.objects[i].position[0], self.objects[i].position[1],
-				// 	new_position[0], new_position[1]);
 			}
 			obj.position = new_position;
 		}
@@ -373,19 +295,4 @@ impl MathisEngine {
 
 	}
 
-	/*
-	pub fn render(&self, c: graphics::context::Context, g: gfx_graphics::back_end::GfxGraphics<gfx::device::Resources,
-			gfx::device::command::CommandBuffer<gfx::device::Resources>, gfx::render::target::Output>) {
-		let center_offset = self.calc_center_of_mass();
-
-		for i in 0..self.objects.len() {
-			let r = self.objects[i].radius;
-			println!("Render object {}, radius {}", i, r);
-			ellipse(self.objects[i].color, //color
-				[self.objects[i].position[0] - r - center_offset[0] + 840.0,
-				self.objects[i].position[1] - r - center_offset[1] + 525.0, r*2.0, r*2.0], //rectangle
-				c.transform, //transform
-				g);
-		}
-	}*/
 }
