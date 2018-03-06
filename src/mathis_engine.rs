@@ -64,21 +64,54 @@ impl MathisEngine {
 		}
 	}
 
-	fn funcF(&self, mut M: Scalar, mut m: Scalar, mut r: Scalar, mut r_radius: Scalar, mut t_delta: Scalar) -> Scalar {
-		M *= 0.2;
-		m *= 0.2;
-		r *= 1.0;
+	pub fn set_g_c(&mut self, grav: Scalar, speed: Scalar) {
+		self.G = grav;
+		self.C = speed;
+		println!("Set new G/C to: ({}, {})", self.G, self.C);
+	}
+
+	fn funcF_orig(&self, mut M: Scalar, mut m: Scalar, mut r: Scalar, mut r_radius: Scalar, mut t_delta: Scalar) -> Scalar {
+		if r <= 0.0 {
+			return 0.0;
+		}
+
+		M *= 1.0;
+		m *= 1.0;
+		r *= 10.0;
 		t_delta *= 1.0;
-		let mut eff_g = self.G;
+		let mut eff_g = self.G; // * 0.001;
 		let mut eff_c = self.C;
-		let r_squared = r.powi(2);
+		let mut r_squared = r.powi(2);
+
+		return 0.0;
+	}
+
+	fn funcF(&self, mut M: Scalar, mut m: Scalar, mut r: Scalar, mut r_radius: Scalar, mut t_delta: Scalar) -> Scalar {
+		if r <= 0.0 {
+			return 0.0;
+		}
+
+		M *= 1.0;
+		m *= 1.0;
+		r *= 10.0;
+		t_delta *= 1.0;
+		let mut eff_g = self.G; // * 0.001;
+		let mut eff_c = self.C;
+		let mut r_squared = r.powi(2);
+
+		// if r_squared < 100.0 {
+		// 	r_squared = 100.0;
+		// }
+
 		let r_squared2 = r_squared * r_squared;
-		eff_g *= 1.0;
-		eff_c *= 0.1;
+		//eff_g *= 1.0;
+		//eff_c *= 0.1;
 
 
-		let mut expansion = - (eff_g * m * M * t_delta / (r_squared));
-		let mut bombardment = (2.0 * eff_g * m * M / ( r_squared2 * eff_c * t_delta ));
+		let mut expansion = -(eff_g * m * M  / (r_squared));
+		let mut bombardment = (2.0 * eff_g * m * M / ( r_squared2 * eff_c ));
+		//expansion = 0.0;
+		//bombardment = 0.0;
 		let force = expansion + bombardment;
 
 		if (expansion > 0.0) { panic!("Expansion isn't negative! H = {}", expansion); }
@@ -87,14 +120,14 @@ impl MathisEngine {
 		//expansion *= 3.0;
 		//bombardment += 100.0 * t_delta;
 
-		if self.frame % 150 == 1110 {
-			println!("M = {}, m = {}, r = {}, t = {}", M, m, r, t_delta);
-			println!(" o H = -G:{} * m:{} * M:{} * t:{} / (r^2:{})", eff_g, m, M, t_delta, r_squared);
-			println!(" o E = 2 * G:{} * m:{} * M:{} / (r^4:{} * C:{} * t:{})", eff_g, m, M, r_squared2, eff_c, t_delta);
-			println!(" > H = {}, E = {}, F = {}", expansion, bombardment, force);
-		}
+		// if bombardment.abs() > expansion.abs() {
+		// 	println!("M = {}, m = {}, r = {}, t = {}", M, m, r, t_delta);
+		// 	println!(" o H = -G:{} * m:{} * M:{} * t:{} / (r^2:{})", eff_g, m, M, t_delta, r_squared);
+		// 	println!(" o E = 2 * G:{} * m:{} * M:{} / (r^4:{} * C:{} * t:{})", eff_g, m, M, r_squared2, eff_c, t_delta);
+		// 	println!(" > H = {}, E = {}, F = {}", expansion, bombardment, force);
+		// }
 
-		return expansion + bombardment;
+		return force;
 	}
 
 	pub fn addObject(&mut self, position: Vec2d, mass: Scalar, radius: Scalar, color: Color, velocity: Vec2d) {
@@ -183,30 +216,32 @@ impl MathisEngine {
 						let mut y_diff = (pos_diff[1]) * self.distance_scale;
 
 						// Exclude minimal interactions between small particles at large distances for performance reasons
-						if x_diff * x_diff + y_diff * y_diff > 25000.0 && M + m < 0.5 {
-							continue;
-						}
+						// if x_diff * x_diff + y_diff * y_diff > 25000.0 && M + m < 0.5 {
+						// 	continue;
+						// }
 
 						let angle = pos_diff[1].atan2(pos_diff[0]);
 						let R_sin = angle.sin();
 						let R_cos = angle.cos();
-						let mut x_diff2 = pos_diff[0].abs() * self.distance_scale;
-						let mut y_diff2 = pos_diff[1].abs() * self.distance_scale;
+						//let mut x_diff2 = pos_diff[0].abs() * self.distance_scale;
+						//let mut y_diff2 = pos_diff[1].abs() * self.distance_scale;
 
-						let radius_sum = self.objects[j].radius + self.objects[i].radius;
-						let radius_sum_y = R_sin * radius_sum;
-						let radius_sum_x = R_cos * radius_sum;
-						if i == 0 && i == 11 && j == 0 {
-							println!("Combined Radius - Radius {}, X component {}, Y component {}, x_diff {:?}, y_diff {:?}",
-								radius_sum, radius_sum_x, radius_sum_y, x_diff, y_diff);
+						// let radius_sum = self.objects[j].radius + self.objects[i].radius;
+						// let radius_sum_y = R_sin * radius_sum;
+						// let radius_sum_x = R_cos * radius_sum;
+						// if i == 0 && i == 11 && j == 0 {
+						// 	println!("Combined Radius - Radius {}, X component {}, Y component {}, x_diff {:?}, y_diff {:?}",
+						// 		radius_sum, radius_sum_x, radius_sum_y, x_diff, y_diff);
 
-						}
+						// }
 
 						//Calculate hypotenuse of x_diff and y_diff R for formula
-						let mut R = ((x_diff).abs().powi(2) + (y_diff).abs().powi(2)).sqrt().max(0.01);
+						let mut R = ((x_diff).abs().powi(2) + (y_diff).abs().powi(2)).sqrt();
 
-						if R < self.objects[j].radius.max(self.objects[i].radius) {
-						}
+						//let mut R = ((x_diff).abs().powi(2) + (y_diff).abs().powi(2)).sqrt().max(0.01);
+
+						//if R < self.objects[j].radius.max(self.objects[i].radius) {
+						//}
 
 						// Calculate radius edge to radius edge length
 						/*
@@ -267,38 +302,39 @@ impl MathisEngine {
 						else */
 
 						let mut F = self.funcF(M, m,R,0.0, t);
-						if F.is_nan() {
-							panic!("Force is NaN: M {}, m {}, R {}, r_radius {}, t_delta {}", M, m, R, 0.0, t);
-							F = 0.01;
-						}
-						let mut A = F / M;
-						let mut a = F / m;
-						if A.is_nan() {
-							A = 0.01;
-							panic!("A is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
-						}
-						if a.is_nan() {
-							a = 0.01;
-							panic!("a is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
-						}
+						if !F.is_nan() && F != 0.0 && F < 1000.0 {
 
-						//apply relative acceleration to each pair
+								//panic!("Force is NaN: M {}, m {}, R {}, r_radius {}, t_delta {}", M, m, R, 0.0, t);
+								//F = 0.01;
+							let mut A = F / M;
+							let mut a = F / m;
+							if A.is_nan() {
+								A = 0.01;
+								panic!("A is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
+							}
+							if a.is_nan() {
+								a = 0.01;
+								panic!("a is NaN: F {}, M {}, m {}, R {}, r_radius {}, t_delta {}", F, M, m, R, 0.0, t);
+							}
 
-						if self.objects[j].enable_accel {
-							{
-								self.check_accel(j, A, i);
+							//apply relative acceleration to each pair
+
+							if self.objects[j].enable_accel {
+								{
+									self.check_accel(j, A, i);
+								}
+								// if i == 0 && j == 0 {
+								// 	println!("obj[0].vel {:?}, obj[0].x_acc {:?}, obj[0].y_acc {:?}. pos_diff {:?}, x_diff {:?}, y_diff {:?}",
+								// 		self.objects[j].velocity, t * A * x_diff_unit, t * A * y_diff_unit, pos_diff, x_diff, y_diff);
+								// }
+								self.objects[j].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[j].velocity, &[t * A * x_diff_unit, t * A * y_diff_unit])
 							}
-							// if i == 0 && j == 0 {
-							// 	println!("obj[0].vel {:?}, obj[0].x_acc {:?}, obj[0].y_acc {:?}. pos_diff {:?}, x_diff {:?}, y_diff {:?}",
-							// 		self.objects[j].velocity, t * A * x_diff_unit, t * A * y_diff_unit, pos_diff, x_diff, y_diff);
-							// }
-							self.objects[j].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[j].velocity, &[t * A * x_diff_unit, t * A * y_diff_unit])
-						}
-						if self.objects[i].enable_accel {
-							{
-								self.check_accel(i, a, j);
+							if self.objects[i].enable_accel {
+								{
+									self.check_accel(i, a, j);
+								}
+								self.objects[i].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[i].velocity, &[t * a * -x_diff_unit, t * a * -y_diff_unit]);
 							}
-							self.objects[i].velocity = MathisObject::<Vec2d>::translate_vec(&self.objects[i].velocity, &[t * a * -x_diff_unit, t * a * -y_diff_unit]);
 						}
 					}
 				}

@@ -14,12 +14,26 @@ pub struct MathisApp {
     pub drag : bool,
     pub last_pos : [f64;2],
     pub view_origin : [f64;2],
+	pub leave_traces : bool,
+	pub show_influence : bool,
+	pub follow_object: bool,
+	pub target_object_idx: usize,
 }
 
 impl MathisApp {
 
     pub fn new_from_engine(the_engine : MathisEngine) -> MathisApp {
-        MathisApp { engine: the_engine, frame: 1, drag: false, last_pos: [0.0,0.0], view_origin: [0.0,0.0], }
+        MathisApp { 
+			engine: the_engine, 
+			frame: 1, 
+			drag: false, 
+			last_pos: [-10000.0,-4000.0], 
+			view_origin: [-10000.0,-4000.0], 
+			leave_traces: false,
+			show_influence: false,
+			follow_object: true,
+			target_object_idx: 0
+		}
     }
 
     pub fn create_window(&self, w_h: [u32;2]) -> PistonWindow {
@@ -33,25 +47,53 @@ impl MathisApp {
     	//build_planets_scene(&mut self.engine);
     	build_twin_stars(&mut self.engine);
     	//build_planets_scene(&mut self.engine);
-    	//some_particles(&mut self.engine);
+    	//some_particles(&mut self.engine, &250.0, &15.0);
+		//some_particles(&mut self.engine, &4.5, &8.0);
+		some_particles(&mut self.engine, &0.1, &3.0);
     	//lots_of_particles_close(&mut self.engine);
 
-    	//generate_grid(&mut self.engine, &[-750,-750,755,755], &[250,250], &5.1);
+    	//generate_grid(&mut self.engine, &[-50750,-2000,50750,2000], &[6850,1900], &1245.1, &1.0);
 
     	//engine.objects[0].enable_accel = false;
 
-        //generate_grid(&mut self.engine, &[-6000,-6000,6000,6000], &[2500,2500], &50.3);
+        //generate_grid(&mut self.engine, &[-60000,-60000,60000,60000], &[19000,19000], &2.2);
+
+
+		//generate_grid(&mut self.engine, &[-10000,-10000,10000,10000], &[4000,4000], &10.5);
+
+		//  // generate_grid(&mut self.engine, &[-8761,-9213,8210,9712], &[3042,3117], &0.05);
+
+        //build_prot_elec(&mut self.engine);
 
     	//generate_grid(&mut self.engine, &[-5000,-5000,5000,5000], &[1110,1110], &10.3);
     	 //generate_grid(&mut self.engine, &[-1000,-100,1001,1001], &[500,500], &70.5);
 
     }
 
+	pub fn constrain_target_index(&mut self) {
+		self.target_object_idx = self.target_object_idx % self.engine.objects.len();
+	}
+
+	pub fn center_on_object(object_loc: [f64;2]) -> [f64;2] {
+		//if self.engine.objects.len() == 0 {
+		//	panic!("Engine has no objects to center on");
+		//	return;
+		//}
+		//self.constrain_target_index();
+		//println!("Center: target object index {}", self.target_object_idx);
+
+		//let ref target_obj = self.engine.objects[self.target_object_idx];
+		let mut new_position = object_loc;
+		new_position[0] = new_position[0];
+		new_position[1] = new_position[1];
+		return new_position;
+	}
+
     pub fn event_loop(&mut self, window : PistonWindow) {
         //let window = self.window;
         //let mut window = window.unwrap();
         let mut wait_for_first_coord = true;
-        let mut scale = 1.0; //0.7;
+        let mut scale = 0.05; //0.7;
         let mut screen_width = 0.0_64;
         let mut screen_height = 0.0_64;
 
@@ -61,7 +103,9 @@ impl MathisApp {
                 let s_frame = self.frame;
                 let s_engine = &self.engine;
                 e.draw_2d(|c, g| {
-                    MathisApp::render(&self.view_origin, s_frame, s_engine, c,g, scale);
+					// Get new view origin if following
+
+                    MathisApp::render(self.view_origin, s_frame, s_engine, c,g, scale, !self.leave_traces, self.show_influence);
                     let vp_rect = c.viewport.unwrap().rect;
                     screen_width = (vp_rect[2] - vp_rect[0]) as f64;
                     screen_height = (vp_rect[3] - vp_rect[1]) as f64;
@@ -74,6 +118,15 @@ impl MathisApp {
             if let Some(_) = e.update_args() {
                 self.engine.advance();
                 self.frame += 1;
+
+				// After event loop handle follow per frame
+				if self.follow_object {
+					let new_offset = MathisApp::center_on_object(self.engine.objects[self.target_object_idx].position);
+					//new_offset[0] -= 
+					self.view_origin[0] = new_offset[0];
+					self.view_origin[1] = new_offset[1];
+				}
+
             }
 
             // Handle button press events
@@ -82,6 +135,46 @@ impl MathisApp {
                     self.drag = true;
                     wait_for_first_coord = true;
                 }
+				// Toggle traces (not clearing screen on render)
+				else if button == Button::Keyboard(Key::T) {
+					self.leave_traces = !self.leave_traces;
+				}
+				// Toggle Influence lines
+				else if button == Button::Keyboard(Key::I) {
+					self.show_influence = !self.show_influence;
+				}
+				// Toggle Influence lines
+				else if button == Button::Keyboard(Key::F) {
+					self.follow_object = !self.follow_object;
+
+					self.constrain_target_index();
+					if self.follow_object {
+						println!("Following: Target object index {}", self.target_object_idx);
+					}
+					else {
+						println!("Not following");
+					}
+					
+				}
+				// Toggle Influence lines
+				else if button == Button::Keyboard(Key::Comma) || button == Button::Keyboard(Key::Period) {
+					if button == Button::Keyboard(Key::Comma) {
+						if self.target_object_idx > 0 {
+							self.target_object_idx -= 1;
+						}
+						else {
+							self.target_object_idx = self.engine.objects.len() - 1;
+						}
+					}
+					else {
+						self.target_object_idx += 1;
+					}
+
+					self.constrain_target_index();
+					println!("New target object index {}", self.target_object_idx);
+					
+				}
+				// Adjust engine tick rate
                 else if button == Button::Keyboard(Key::PageDown) || button == Button::Keyboard(Key::PageUp) {
                     if button == Button::Keyboard(Key::PageUp) {
                         self.engine.tick_rate *= 1.05;
@@ -91,6 +184,25 @@ impl MathisApp {
                     }
                     println!("New tick rate {}", self.engine.tick_rate);
                 }
+				// Adjust Gravity and Speed of light parameters
+				else if button == Button::Keyboard(Key::P) || button == Button::Keyboard(Key::O) 
+					|| button == Button::Keyboard(Key::K) || button == Button::Keyboard(Key::L) {
+					let mut new_grav = self.engine.G;
+					let mut new_speed = self.engine.C;
+                    if button == Button::Keyboard(Key::P) {
+						new_grav *= 1.05;
+					}
+					else if button == Button::Keyboard(Key::O) {
+						new_grav /= 1.05;
+					}
+					else if button == Button::Keyboard(Key::K) {
+						new_speed *= 1.05;
+					}
+					else if button == Button::Keyboard(Key::L) {
+						new_speed /= 1.05;
+					}
+					self.engine.set_g_c(new_grav, new_speed);
+				}
             };
             // Handle button release events
             if let Some(button) = e.release_args() {
@@ -104,8 +216,10 @@ impl MathisApp {
     			// Downward scrolling - increase scale
                 if scroll[1] > 0.0 {
                     let curr_origin = self.view_origin;
+					// Increase scale by a percentage
                     scale *= 1.05;
                     let scale_ratio = scale / orig_scale;
+					// Correct view origin to keep same location (only poorly works now TODO: make really work to center on mouse or center of viewport)
                     self.view_origin[0] = curr_origin[0] + (self.last_pos[0]) * (1.0  / orig_scale - 1.0 / scale);
                     self.view_origin[1] = curr_origin[1] + (self.last_pos[1]) * (1.0  / orig_scale - 1.0 / scale);
                     /*self.view_origin[0] = curr_origin[0] - 0.5 * screen_width * (scale_ratio);
@@ -117,9 +231,11 @@ impl MathisApp {
                 }
                 // Upward scrolling - decrease scale
                 else if scroll[1] < 0.0 {
-                    scale /= 1.05;
                     let curr_origin = self.view_origin;
+					// Increase scale by a percentage
+                    scale /= 1.05;
                     let scale_ratio = scale / orig_scale;
+					// Correct view origin to keep same location (only poorly works now TODO: make really work to center on mouse or center of viewport)
                     self.view_origin[0] = curr_origin[0] + (self.last_pos[0]) * (1.0  / orig_scale - 1.0 / scale);
                     self.view_origin[1] = curr_origin[1] + (self.last_pos[1]) * (1.0  / orig_scale - 1.0 / scale);
                     /*self.view_origin[0] = curr_origin[0] - 0.5 * screen_width * (scale_ratio);
@@ -151,15 +267,19 @@ impl MathisApp {
         println!("Exited event loop");
     }
 
-    fn render(center_offset : &[f64;2], frame: i32, engine : &MathisEngine, c : Context, g : &mut G2d, scale : f64) {
+    fn render(mut center_offset : [f64;2], frame: i32, engine : &MathisEngine, c : Context, g : &mut G2d, scale : f64,
+		clear_display: bool, show_influence: bool ) {
             //let engine = &self.engine;
         	let vp_rect = c.viewport.unwrap().rect;
         	let screen_rect = [vp_rect[0] as f64, vp_rect[1] as f64, vp_rect[2] as f64, vp_rect[3] as f64];
         	let transform = c.transform.scale(scale,scale);
 
-        	if frame >= 0 {
+        	if clear_display {
         		rectangle( [0.0,0.0,0.0,1.0], screen_rect, c.transform, g);
         	}
+			else {
+				rectangle( [0.0,0.0,0.0,0.01], screen_rect, c.transform, g);
+			}
 
         	//Decide if we should draw the background rectangle
         	{/* //if frame % 11 == 0
@@ -180,12 +300,12 @@ impl MathisApp {
         	//Tell engine to renders its objects
         	//engine.render(c, g);
         	//let center_offset = [0.0_f64, 0.0_f64]; //engine.calc_center_of_mass(); //[0.0_f64, 0.0_f64]; //
-        	if frame % 100 == 0 {
+        	/*if frame % 100 == 0 {
         		println!("Center of Mass {:?}", center_offset);
         		println!("Object count {:?} Min/Max Star Distance ({},{})", engine.objects.len(), engine.min_max_star_distance.0, engine.min_max_star_distance.1);
-        	}
-        	let offset_x = center_offset[0] - 840.0;
-        	let offset_y = center_offset[1] - 525.0;
+        	}*/
+        	let offset_x = center_offset[0] - ((screen_rect[2] - screen_rect[0]) / 2.0 / scale);
+        	let offset_y = center_offset[1] - ((screen_rect[3] - screen_rect[1]) / 2.0 / scale);
 
         	//rectangle( [0.0,0.0,0.0,0.9], screen_rect, c.transform, g);
 
@@ -211,19 +331,20 @@ impl MathisApp {
 
                 line([0.5,0.5,0.5,0.5], 1.0 / scale, [start_vel[0], start_vel[1], end_vel[0], end_vel[1]], transform, g);
 
-                if obj.max_accel_id > 0 {
+				// If there is a "most accelerated by" object id, show influence line
+                if obj.max_accel_id > 0 && show_influence {
                     let mut obj_2_idx = 0;
                     for j in 0..engine.objects.len() {
                         if engine.objects[j].obj_id == obj.max_accel_id {
                             let obj2 = &engine.objects[j];
 
                             if obj.max_accel > 0.0 {
-                                line([0.8,0.3,0.3,0.25], 1.0 / scale,
+                                line([0.8,0.3,0.3,0.15], 1.0 / scale,
                                     [obj.position[0] - offset_x, obj.position[1] - offset_y,
                                     obj2.position[0] - offset_x, obj2.position[1] - offset_y], transform, g);
                             }
                             else {
-                                line([0.2,0.4,0.8,0.15], 1.0 / scale,
+                                line([0.2,0.4,0.8,0.05], 1.0 / scale,
                                     [obj.position[0] - offset_x, obj.position[1] - offset_y,
                                     obj2.position[0] - offset_x, obj2.position[1] - offset_y], transform, g);
                             }
@@ -239,7 +360,7 @@ impl MathisApp {
 
 
                 let mut draw_r = r * 2.0;
-                if draw_r * scale < 2.0 { draw_r = 1.8 / scale; }
+                if draw_r * scale < 1.0 { draw_r = 0.8 / scale; }
 
         		//println!("Render object {}, radius {}", i, r);
                 circle_arc(engine.objects[i].color, 1.0 / scale, //color, radius of line drawn
