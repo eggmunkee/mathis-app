@@ -45,11 +45,13 @@ impl MathisApp {
 
     	//single_star(&mut self.engine);
     	//build_planets_scene(&mut self.engine);
-    	build_twin_stars(&mut self.engine);
+    	build_twin_stars(&mut self.engine, &[-40000.0, 0.0], &[0.0, -8.0]);
+		build_twin_stars(&mut self.engine, &[40000.0, 0.0], &[0.0, 8.0]);
     	//build_planets_scene(&mut self.engine);
     	//some_particles(&mut self.engine, &250.0, &15.0);
 		//some_particles(&mut self.engine, &4.5, &8.0);
-		some_particles(&mut self.engine, &0.1, &3.0);
+		some_particles(&mut self.engine, &25, &20.1, &12.5, &[50000.0, 50000.0], &[-40000.0, 0.0]);
+		some_particles(&mut self.engine, &25, &20.1, &12.5, &[50000.0, 50000.0], &[40000.0, 0.0]);
     	//lots_of_particles_close(&mut self.engine);
 
     	//generate_grid(&mut self.engine, &[-50750,-2000,50750,2000], &[6850,1900], &1245.1, &1.0);
