@@ -23,11 +23,21 @@ pub fn build_prot_elec(eng: &mut MathisEngine) {
 	eng.addObject([1000.0, 0.0], 1.0, 1.0, [1.0, 0.1, 0.2, 0.5], [0.0, -310.0]);
 }
 
+pub fn build_twin_stars_default(eng: &mut MathisEngine) {
+	build_twin_stars(eng, &[0.0, 0.0], &[0.0, 0.0]);
+}
+
 #[allow(dead_code)]
-pub fn build_twin_stars(eng: &mut MathisEngine) {
+pub fn build_twin_stars(eng: &mut MathisEngine, pos_offset: &[f64; 2], vel_offset: &[f64; 2]) {
 	let vert_speed = 17.7;
-	eng.addObject([-4000.0, 0.0], 100000.0, 300.0, [1.0, 0.1, 0.1, 0.5], [0.0, -vert_speed]);
-	eng.addObject([4000.0, 0.0], 100000.0, 300.0, [0.1, 1.0, 0.1, 0.5], [0.0, vert_speed]);
+	eng.addObject([-4000.0 + pos_offset[0], 0.0 + pos_offset[1]], // position
+		100000.0, 300.0, // mass and radius
+		[1.0, 0.1, 0.1, 0.5], // color
+		[0.0 + vel_offset[0], -vert_speed + vel_offset[1]]); // velocity
+	eng.addObject([4000.0 + pos_offset[0], 0.0 + pos_offset[1]],  // position
+		100000.0, 300.0, // mass and radius
+		[0.1, 1.0, 0.1, 0.5], // color
+		[0.0 + vel_offset[0], vert_speed + vel_offset[1]]); // velocity
 }
 
 pub fn build_4_body_system(eng: &mut MathisEngine) {
@@ -75,20 +85,22 @@ pub fn build_planets_scene(eng: &mut MathisEngine) {
 
 
 #[allow(dead_code)]
-pub fn some_particles(eng: &mut MathisEngine, avg_mass: &f64, avg_vel: &f64) {
-	let x_range = Range::new(-32000.0, 32000.0);
-	let y_range = Range::new(-32000.0, 32000.0);
-	let mass_range = Range::<f64>::new(0.02, 0.2);
+pub fn some_particles(eng: &mut MathisEngine, num_particles: &i32, avg_mass: &f64, avg_vel: &f64, area_size: &[f64; 2], pos_offset: &[f64; 2]) {
+	let half_width = area_size[0] * 0.5;
+	let half_height = area_size[1] * 0.5;
+	let x_range = Range::new(-half_width, half_width);
+	let y_range = Range::new(-half_height, half_height);
+	let mass_range = Range::<f64>::new(0.08, 1.0);
 	let color_range = Range::new(0.1_f32, 1.0_f32);
 	let vel_range = Range::new(-2.5, 2.5);
 	let mut rng = thread_rng();
 
-	for _ in 0..20 {
+	for _ in 0..*num_particles {
 		let mut m : Scalar = mass_range.ind_sample(&mut rng) * avg_mass;
 		let vel_x = vel_range.ind_sample(&mut rng) * avg_vel;
 		let vel_y = vel_range.ind_sample(&mut rng) * avg_vel;
 		let rad : Scalar = m; //.sqrt();
-		eng.addObject([x_range.ind_sample(&mut rng), y_range.ind_sample(&mut rng)],
+		eng.addObject([x_range.ind_sample(&mut rng) + pos_offset[0], y_range.ind_sample(&mut rng) + pos_offset[1]],
 			m, rad * 2.0,
 			[color_range.ind_sample(&mut rng), color_range.ind_sample(&mut rng), color_range.ind_sample(&mut rng), (color_range.ind_sample(&mut rng) - 0.5_f32).abs() + 0.5_f32],
 			[vel_x, vel_y]);
