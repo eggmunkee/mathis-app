@@ -24,18 +24,23 @@ pub fn build_prot_elec(eng: &mut MathisEngine) {
 }
 
 pub fn build_twin_stars_default(eng: &mut MathisEngine) {
-	build_twin_stars(eng, &[0.0, 0.0], &[0.0, 0.0]);
+	build_twin_stars(eng, &[0.0, 0.0], &[0.0, 0.0], &1.0, &1.0, &1.0);
 }
 
 #[allow(dead_code)]
-pub fn build_twin_stars(eng: &mut MathisEngine, pos_offset: &[f64; 2], vel_offset: &[f64; 2]) {
-	let vert_speed = 17.7;
-	eng.addObject([-4000.0 + pos_offset[0], 0.0 + pos_offset[1]], // position
-		100000.0, 300.0, // mass and radius
+pub fn build_twin_stars(eng: &mut MathisEngine, pos_offset: &[f64; 2], vel_offset: &[f64; 2],
+	radius_multiplier: &f64, mass_multiplier: &f64, vel_multiplier: &f64) {
+
+	let vert_speed = 17.7 * vel_multiplier;
+	let radius_from_center = 4000.0 * radius_multiplier;
+	let star_mass = 100000.0 * mass_multiplier;
+	let star_radius = 300.0 * mass_multiplier;
+	eng.addObject([-radius_from_center + pos_offset[0], 0.0 + pos_offset[1]], // position
+		star_mass, star_radius, // mass and radius
 		[1.0, 0.1, 0.1, 0.5], // color
 		[0.0 + vel_offset[0], -vert_speed + vel_offset[1]]); // velocity
-	eng.addObject([4000.0 + pos_offset[0], 0.0 + pos_offset[1]],  // position
-		100000.0, 300.0, // mass and radius
+	eng.addObject([radius_from_center + pos_offset[0], 0.0 + pos_offset[1]],  // position
+		star_mass, star_radius, // mass and radius
 		[0.1, 1.0, 0.1, 0.5], // color
 		[0.0 + vel_offset[0], vert_speed + vel_offset[1]]); // velocity
 }
